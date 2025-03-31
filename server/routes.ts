@@ -109,10 +109,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Stok içerik API'leri kaldırıldı
   
-  // Grok (xAI) API rotaları - Şu an için devre dışı
-  // Bunları etkinleştirmek için admin panelinden API anahtarlarını yapılandırın
-  // app.post("/api/grok/summarize", isAuthenticated, summarizeText);
-  // app.post("/api/grok/analyze-image", isAuthenticated, analyzeImage);
+  // Grok (xAI) API rotaları
+  app.post("/api/grok/summarize", isAuthenticated, summarizeText);
+  app.post("/api/grok/analyze-image", isAuthenticated, analyzeImage);
   
   // API Yapılandırma Rotaları
   app.get("/api/admin/api-configs", isAuthenticated, isAdmin, getAllApiConfigs);

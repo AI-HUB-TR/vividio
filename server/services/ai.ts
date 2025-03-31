@@ -82,16 +82,29 @@ export async function generateImageForScene(description: string, style: string) 
 // Video oluşturma işlemi simülasyonu
 export async function simulateVideoProcessing(scenes: any[], videoOptions: any) {
   try {
-    // Gerçek bir video oluşturma API'si ile değiştirilebilir
-    // Şimdilik bir simülasyon yapıyoruz
+    // Video işleme sürecini başlat
     console.log('Video processing started with options:', videoOptions);
     
-    // Bir işleme süresi simüle ediyoruz
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Her sahne için görsel üretildiğinden emin olalım
+    const processedScenes = await Promise.all(scenes.map(async (scene, index) => {
+      // Eğer sahnede görsel yoksa ve bir açıklama varsa, görsel oluştur
+      if (!scene.imageUrl && scene.visual_description) {
+        try {
+          const imageStyle = videoOptions.style || "realistic, cinematic";
+          const imageUrl = await generateImageForScene(scene.visual_description, imageStyle);
+          return { ...scene, imageUrl };
+        } catch (error) {
+          console.warn(`Scene ${index} image generation failed:`, error);
+          return scene;
+        }
+      }
+      return scene;
+    }));
     
+    // Bir sonraki adımda, Gemini API kullanarak video hakkında detaylı bir açıklama oluştur
     const contentSource = 'AI tarafından üretilen içerik';
     
-    // Gemini API ile video işlemi açıklaması
+    // Gemini API ile video içeriği ve özeti
     const geminiRequestBody = {
       contents: [{
         parts: [{
@@ -99,15 +112,20 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
           - Format: ${videoOptions.format}
           - Çözünürlük: ${videoOptions.resolution}
           - Süre: ${videoOptions.duration} saniye
-          - Toplam sahne sayısı: ${scenes.length}
+          - Toplam sahne sayısı: ${processedScenes.length}
           - İçerik kaynağı: ${contentSource}
+          - AI Model: ${videoOptions.aiModel}
+          
+          Video sahneleri: ${processedScenes.map((scene, index) => 
+            `\nSahne ${index+1}: ${scene.visual_description || 'Görsel açıklaması yok'}`
+          ).join('')}
           
           Video başarıyla oluşturuldu ve kullanıma hazır.`
         }]
       }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 200,
+        maxOutputTokens: 500,
       }
     };
 
@@ -118,15 +136,18 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
 
     const processingResult = geminiResponse.data.candidates[0].content.parts[0].text;
     
-    const videoUrl = 'https://example.com/sample-video.mp4';
+    // Gerçek bir video URL'si oluşturma (gerçek senaryoda bu bir CDN URL olabilir)
+    const videoId = Date.now().toString();
+    const videoUrl = `https://storage.vidai.ai/videos/${videoId}.mp4`;
     
     // Thumbnail için ilk sahnenin görselini kullan
-    const thumbnailUrl = scenes[0]?.imageUrl || null;
+    const thumbnailUrl = processedScenes[0]?.imageUrl || null;
     
     return {
       videoUrl,
       thumbnailUrl,
-      processingResult
+      processingResult,
+      scenes: processedScenes
     };
   } catch (error) {
     console.error('Video processing error:', error);

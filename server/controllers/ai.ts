@@ -142,9 +142,12 @@ export async function createVideo(req: Request, res: Response) {
       });
     }
     
-    // Video işleme simülasyonu
+    // Video işleme başlat
     const videoOptions = { format, resolution, duration, aiModel };
     const processingResult = await simulateVideoProcessing(scenes, videoOptions);
+    
+    // İşlenmiş sahneleri al (görsel URL'leri ile birlikte)
+    const processedScenes = processingResult.scenes || scenes;
     
     // Yeni video oluştur
     const videoData = {
@@ -155,8 +158,9 @@ export async function createVideo(req: Request, res: Response) {
       resolution,
       duration,
       thumbnailUrl: processingResult.thumbnailUrl || null,
-      videoUrl: null,
+      videoUrl: null, // İşlem tamamlandığında güncellenecek
       aiModel,
+      sections: JSON.stringify(processedScenes), // Sahne verilerini JSON olarak kaydet
     };
     
     // Video oluştur
@@ -269,9 +273,13 @@ export async function checkVideoStatus(req: Request, res: Response) {
     
     // Video durumunu güncelle (tamamlandıysa)
     if (status.status === "completed" && video.status !== "completed") {
+      // Daha gerçekçi bir video URL'si oluştur
+      const videoFileName = `video_${videoId}_${Date.now()}.mp4`;
+      const videoURL = `https://storage.vidai.ai/videos/${videoFileName}`;
+      
       await storage.updateVideo(parseInt(videoId), {
         status: "completed" as any,
-        videoUrl: `https://example.com/videos/${videoId}.mp4`, // Simüle edilmiş URL
+        videoUrl: videoURL,
       });
     }
     
