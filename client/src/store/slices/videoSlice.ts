@@ -1,23 +1,18 @@
-import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
-import { Video, InsertVideo } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { Video } from '@shared/schema';
+import { apiRequest } from '@/lib/queryClient';
 
-// Video sahnesi için interface
-interface VideoScene {
-  id: number;
-  text_segment: string;
-  visual_description: string;
-  enhanced_description?: string;
-  imageUrl?: string;
-  startTime?: number;
-  endTime?: number;
-  style?: string;
-}
-
-// Video oluşturma için genişletilmiş VideoData interface'i
-interface VideoData extends Omit<InsertVideo, 'sections'> {
+// Tip tanımları
+export interface VideoData {
+  userId: number;
+  title: string;
+  originalText: string;
+  format: string;
+  duration: number;
+  resolution: string;
   sections?: any;
-  scenes?: VideoScene[];
+  aiModel?: string;
+  status?: string;
 }
 
 interface VideoState {
@@ -25,198 +20,386 @@ interface VideoState {
   currentVideo: Video | null;
   loading: boolean;
   error: string | null;
+  scenes: any[];
+  processingStatus: {
+    status: string;
+    progress: number;
+  };
 }
 
+// İlk durum
 const initialState: VideoState = {
   videos: [],
   currentVideo: null,
   loading: false,
-  error: null
+  error: null,
+  scenes: [],
+  processingStatus: {
+    status: 'idle',
+    progress: 0,
+  },
 };
 
-// Async thunks
-export const fetchUserVideos = createAsyncThunk(
-  "video/fetchUserVideos",
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await apiRequest("GET", "/api/videos");
-      return await res.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Videolar alınamadı");
+// Asenkron eylemler
+export const fetchUserVideos = createAsyncThunk('videos/fetchUserVideos', async () => {
+  const response = await apiRequest('GET', '/api/videos');
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Videolar yüklenirken bir hata oluştu');
+  }
+  
+  return response.json();
+});
+
+export const fetchVideoById = createAsyncThunk('videos/fetchVideoById', async (videoId: number) => {
+  const response = await apiRequest('GET', `/api/videos/${videoId}`);
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Video yüklenirken bir hata oluştu');
+  }
+  
+  return response.json();
+});
+
+export const createVideo = createAsyncThunk('videos/createVideo', async (videoData: VideoData) => {
+  const response = await apiRequest('POST', '/api/videos', videoData);
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Video oluşturulurken bir hata oluştu');
+  }
+  
+  return response.json();
+});
+
+export const deleteVideo = createAsyncThunk('videos/deleteVideo', async (videoId: number) => {
+  const response = await apiRequest('DELETE', `/api/videos/${videoId}`);
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Video silinirken bir hata oluştu');
+  }
+  
+  return videoId;
+});
+
+export const generateVideoScenes = createAsyncThunk(
+  'videos/generateScenes',
+  async ({ text, sceneCount }: { text: string; sceneCount: number }) => {
+    const response = await apiRequest('POST', '/api/ai/generate-scenes', {
+      text,
+      sceneCount,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Sahneler oluşturulurken bir hata oluştu');
     }
+    
+    return response.json();
   }
 );
 
-export const fetchVideoById = createAsyncThunk(
-  "video/fetchVideoById",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      const res = await apiRequest("GET", `/api/videos/${id}`);
-      return await res.json();
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Video alınamadı");
+export const generateSceneImage = createAsyncThunk(
+  'videos/generateSceneImage', 
+  async ({ description, style }: { description: string, style: string }) => {
+    const response = await apiRequest('POST', '/api/ai/generate-image', {
+      description,
+      style,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Görsel oluşturulurken bir hata oluştu');
     }
+    
+    return response.json();
   }
 );
 
-export const createVideo = createAsyncThunk(
-  "video/createVideo",
-  async (videoData: VideoData, { rejectWithValue }) => {
-    try {
-      // Sahneleri işle: Sahneler varsa sections olarak ekle
-      const processedData: InsertVideo = {
-        ...videoData,
-        sections: videoData.scenes ? JSON.stringify(videoData.scenes) : (videoData.sections ? JSON.stringify(videoData.sections) : null)
-      };
-      
-      // Video oluşturma isteği
-      const res = await apiRequest("POST", "/api/videos", processedData);
-      
-      if (!res.ok) {
-        throw new Error("Video oluşturma başarısız oldu");
-      }
-      
-      const video = await res.json();
-      
-      // Video işleme başlat (asenkron)
-      if (video && video.id) {
-        // API'da video işleme zamanlaması ayarla
-        try {
-          await apiRequest("POST", "/api/ai/create-video", {
-            videoId: video.id,
-            scenes: videoData.scenes,
-            videoOptions: {
-              format: videoData.format,
-              resolution: videoData.resolution,
-              duration: videoData.duration,
-              aiModel: videoData.aiModel || "stable_diffusion_xl"
-            }
-          });
-        } catch (processingError) {
-          console.error("Video işleme başlatılırken hata:", processingError);
-          // İşleme başlatılamasa bile, video kaydedildiği için hata gösterme
-        }
-      }
-      
-      return video;
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Video oluşturulamadı");
+export const enhanceScenes = createAsyncThunk(
+  'videos/enhanceScenes',
+  async ({ scenes, useGrok }: { scenes: any[], useGrok: boolean }) => {
+    const response = await apiRequest('POST', '/api/ai/enhance-scenes', {
+      scenes,
+      useGrok,
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Sahneler iyileştirilirken bir hata oluştu');
     }
+    
+    return response.json();
   }
 );
 
-export const deleteVideo = createAsyncThunk(
-  "video/deleteVideo",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      await apiRequest("DELETE", `/api/videos/${id}`);
-      return id;
-    } catch (error: any) {
-      return rejectWithValue(error.message || "Video silinemedi");
+export const createAIVideo = createAsyncThunk(
+  'videos/createAIVideo',
+  async (videoData: { scenes: any[], videoOptions: any }) => {
+    const response = await apiRequest('POST', '/api/ai/create-video', videoData);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Video oluşturulurken bir hata oluştu');
     }
+    
+    return response.json();
   }
 );
 
-// Slice
+export const checkVideoStatus = createAsyncThunk(
+  'videos/checkStatus',
+  async (videoId: number) => {
+    const response = await apiRequest('GET', `/api/ai/video-status/${videoId}`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Video durumu kontrol edilirken bir hata oluştu');
+    }
+    
+    return response.json();
+  }
+);
+
+// Video slice
 const videoSlice = createSlice({
-  name: "video",
+  name: 'video',
   initialState,
   reducers: {
-    clearVideoError: (state) => {
-      state.error = null;
+    setScenes: (state, action: PayloadAction<any[]>) => {
+      state.scenes = action.payload;
     },
-    setCurrentVideo: (state, action: PayloadAction<Video | null>) => {
-      state.currentVideo = action.payload;
+    updateScene: (state, action: PayloadAction<{ index: number; scene: any }>) => {
+      const { index, scene } = action.payload;
+      if (state.scenes[index]) {
+        state.scenes[index] = { ...state.scenes[index], ...scene };
+      }
     },
-    updateVideoStatus: (state, action: PayloadAction<{ id: number; status: string; videoUrl?: string; thumbnailUrl?: string }>) => {
+    updateVideoStatus: (state, action: PayloadAction<{ 
+      id: number;
+      status: string;
+      videoUrl?: string;
+      thumbnailUrl?: string;
+    }>) => {
       const { id, status, videoUrl, thumbnailUrl } = action.payload;
       
-      // Update in videos array
+      // Eğer aktif bir video varsa güncelle
+      if (state.currentVideo && state.currentVideo.id === id) {
+        state.currentVideo = {
+          ...state.currentVideo,
+          status,
+          ...(videoUrl && { videoUrl }),
+          ...(thumbnailUrl && { thumbnailUrl }),
+        };
+      }
+      
+      // Listede varsa güncelle
       state.videos = state.videos.map(video => {
         if (video.id === id) {
-          return { 
-            ...video, 
-            status, 
-            videoUrl: videoUrl || video.videoUrl, 
-            thumbnailUrl: thumbnailUrl || video.thumbnailUrl 
+          return {
+            ...video,
+            status,
+            ...(videoUrl && { videoUrl }),
+            ...(thumbnailUrl && { thumbnailUrl }),
           };
         }
         return video;
       });
-      
-      // Update current video if it's the same
-      if (state.currentVideo && state.currentVideo.id === id) {
-        state.currentVideo = { 
-          ...state.currentVideo, 
-          status, 
-          videoUrl: videoUrl || state.currentVideo.videoUrl, 
-          thumbnailUrl: thumbnailUrl || state.currentVideo.thumbnailUrl 
-        };
-      }
-    }
+    },
+    resetScenes: (state) => {
+      state.scenes = [];
+    },
+    setProcessingStatus: (state, action: PayloadAction<{ status: string; progress: number }>) => {
+      state.processingStatus = action.payload;
+    },
+    clearCurrentVideo: (state) => {
+      state.currentVideo = null;
+    },
   },
   extraReducers: (builder) => {
-    // Fetch User Videos
-    builder.addCase(fetchUserVideos.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(fetchUserVideos.fulfilled, (state, action) => {
-      state.loading = false;
-      state.videos = action.payload;
-    });
-    builder.addCase(fetchUserVideos.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
+    // Kullanıcı videolarını çekme
+    builder
+      .addCase(fetchUserVideos.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserVideos.fulfilled, (state, action) => {
+        state.loading = false;
+        state.videos = action.payload;
+      })
+      .addCase(fetchUserVideos.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Videolar yüklenirken bir hata oluştu';
+      });
     
-    // Fetch Video By Id
-    builder.addCase(fetchVideoById.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(fetchVideoById.fulfilled, (state, action) => {
-      state.loading = false;
-      state.currentVideo = action.payload;
-    });
-    builder.addCase(fetchVideoById.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
+    // Belirli bir videoyu çekme
+    builder
+      .addCase(fetchVideoById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchVideoById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentVideo = action.payload;
+      })
+      .addCase(fetchVideoById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Video yüklenirken bir hata oluştu';
+      });
     
-    // Create Video
-    builder.addCase(createVideo.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(createVideo.fulfilled, (state, action) => {
-      state.loading = false;
-      state.videos = [action.payload, ...state.videos];
-      state.currentVideo = action.payload;
-    });
-    builder.addCase(createVideo.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
+    // Video oluşturma
+    builder
+      .addCase(createVideo.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createVideo.fulfilled, (state, action) => {
+        state.loading = false;
+        state.videos.push(action.payload);
+        state.currentVideo = action.payload;
+      })
+      .addCase(createVideo.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Video oluşturulurken bir hata oluştu';
+      });
     
-    // Delete Video
-    builder.addCase(deleteVideo.pending, (state) => {
-      state.loading = true;
-      state.error = null;
-    });
-    builder.addCase(deleteVideo.fulfilled, (state, action) => {
-      state.loading = false;
-      state.videos = state.videos.filter(video => video.id !== action.payload);
-      if (state.currentVideo && state.currentVideo.id === action.payload) {
-        state.currentVideo = null;
-      }
-    });
-    builder.addCase(deleteVideo.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload as string;
-    });
+    // Video silme
+    builder
+      .addCase(deleteVideo.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteVideo.fulfilled, (state, action) => {
+        state.loading = false;
+        state.videos = state.videos.filter(video => video.id !== action.payload);
+        if (state.currentVideo && state.currentVideo.id === action.payload) {
+          state.currentVideo = null;
+        }
+      })
+      .addCase(deleteVideo.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Video silinirken bir hata oluştu';
+      });
+    
+    // Sahneleri üretme
+    builder
+      .addCase(generateVideoScenes.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(generateVideoScenes.fulfilled, (state, action) => {
+        state.loading = false;
+        state.scenes = action.payload;
+      })
+      .addCase(generateVideoScenes.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Sahneler oluşturulurken bir hata oluştu';
+      });
+    
+    // Sahne görseli oluşturma
+    builder
+      .addCase(generateSceneImage.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(generateSceneImage.fulfilled, (state, action) => {
+        state.loading = false;
+      })
+      .addCase(generateSceneImage.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Görsel oluşturulurken bir hata oluştu';
+      });
+    
+    // Sahneleri iyileştirme
+    builder
+      .addCase(enhanceScenes.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(enhanceScenes.fulfilled, (state, action) => {
+        state.loading = false;
+        state.scenes = action.payload;
+      })
+      .addCase(enhanceScenes.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Sahneler iyileştirilirken bir hata oluştu';
+      });
+    
+    // AI Video oluşturma
+    builder
+      .addCase(createAIVideo.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createAIVideo.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.video) {
+          state.videos.push(action.payload.video);
+          state.currentVideo = action.payload.video;
+        }
+      })
+      .addCase(createAIVideo.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Video oluşturulurken bir hata oluştu';
+      });
+    
+    // Video durumunu kontrol etme
+    builder
+      .addCase(checkVideoStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkVideoStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.processingStatus) {
+          state.processingStatus = action.payload.processingStatus;
+        }
+        
+        // Eğer video tamamlandıysa, video url'sini güncelle
+        if (action.payload.video && action.payload.processingStatus.status === 'completed') {
+          const { video } = action.payload;
+          
+          // Listedeki video bilgilerini güncelle
+          state.videos = state.videos.map(v => {
+            if (v.id === video.id) {
+              return {
+                ...v,
+                status: 'completed',
+                videoUrl: video.videoUrl,
+                thumbnailUrl: video.thumbnailUrl
+              };
+            }
+            return v;
+          });
+          
+          // Eğer aktif video buysa, onu da güncelle
+          if (state.currentVideo && state.currentVideo.id === video.id) {
+            state.currentVideo = {
+              ...state.currentVideo,
+              status: 'completed',
+              videoUrl: video.videoUrl,
+              thumbnailUrl: video.thumbnailUrl
+            };
+          }
+        }
+      })
+      .addCase(checkVideoStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Video durumu kontrol edilirken bir hata oluştu';
+      });
   }
 });
 
-export const { clearVideoError, setCurrentVideo, updateVideoStatus } = videoSlice.actions;
+export const { 
+  setScenes, 
+  updateScene, 
+  resetScenes, 
+  updateVideoStatus,
+  setProcessingStatus,
+  clearCurrentVideo
+} = videoSlice.actions;
+
 export default videoSlice.reducer;

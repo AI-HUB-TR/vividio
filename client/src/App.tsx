@@ -8,6 +8,7 @@ import { fetchCurrentUser } from "./store/slices/authSlice";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
+import VideoPreview from "@/pages/video-preview";
 import AdminIndex from "@/pages/admin/index";
 import AdminUsers from "@/pages/admin/users";
 import AdminVideos from "@/pages/admin/videos";
@@ -19,6 +20,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/video/:id" component={VideoPreview} />
       <Route path="/admin" component={AdminIndex} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/videos" component={AdminVideos} />
