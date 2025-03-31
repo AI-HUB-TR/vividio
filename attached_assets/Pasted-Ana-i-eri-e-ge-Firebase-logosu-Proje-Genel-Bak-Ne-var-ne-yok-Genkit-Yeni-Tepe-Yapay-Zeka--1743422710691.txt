@@ -1,0 +1,99 @@
+Ana içeriğe geç
+Firebase logosu
+Proje Genel Bakışı
+Ne var ne yok
+Genkit
+Yeni
+Tepe Yapay Zeka
+Yeni
+Ürün kategorileri
+İnşa etmek
+Koşmak
+Analitik
+Yapay Zeka
+Tüm ürünler
+İlgili geliştirme araçları
+KimlikX
+Kontroller
+Billing plan:Spark
+No-cost ($0/month)
+
+
+zekibot
+Proje ayarları
+Proje ayarları
+Genel
+Bulut Mesajlaşma
+Entegrasyonlar
+Hizmet hesapları
+Veri gizliliği
+Kullanıcılar ve izinler
+Projeniz
+Proje adı
+canlı-video-oluşturucu
+Proje Kimliği
+canlı-video-oluşturucu
+Proje numarası
+382310668969
+Web API Anahtarı
+Bu proje için Web API Anahtarı yok
+Çevre
+Bu ayar, projenizi uygulama yaşam döngüsünün farklı aşamaları için özelleştirir
+Çevre türü
+Belirtilmemiş
+Uygulamalarınız
+Web uygulamaları
+canlı-gen
+Web Uygulaması
+zekibot
+Web Uygulaması
+Uygulama takma adı
+canlı-gen
+Uygulama kimliği
+1:382310668969:web:ccbcbfd7763a8df249a7b8
+Bağlantılı Firebase Hosting sitesi
+canlı-video-oluşturucu
+
+SDK kurulumu ve yapılandırması
+
+npm
+
+Kanada
+
+Yapılandırma
+Zaten npm ve webpack veya Rollup gibi bir modül paketleyici kullanıyorsanız , en son SDK'yı yüklemek için aşağıdaki komutu çalıştırabilirsiniz ( Daha fazla bilgi edinin ):
+
+npm firebase'ı kurun
+Ardından Firebase'ı başlatın ve kullanmak istediğiniz ürünler için SDK'ları kullanmaya başlayın.
+
+// İhtiyacınız olan fonksiyonları ihtiyaç duyduğunuz SDK'lardan içe aktarın
+{ initializeApp } dosyasını "firebase/app" dizininden içe aktarın ;   
+{ getAnalytics }' i "firebase/analytics" ten içe aktarın ;   
+// TODO: Kullanmak istediğiniz Firebase ürünleri için SDK'ları ekleyin
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Web uygulamanızın Firebase yapılandırması
+// Firebase JS SDK v7.20.0 ve üzeri için MeasurementId isteğe bağlıdır
+sabit firebaseConfig = { 
+  apiKey : "AIzaSyADRm4nZF4iyJzuRDVA54yealsHrm2N3Mk" , 
+  authDomain : "vivid-video-generator.firebaseapp.com" , 
+  projeKimliği : "canlı-video-oluşturucu" , 
+  storageBucket : "canlı-video-oluşturucu.firebasestorage.app" , 
+  mesajlaşmaGönderenKimliği : "382310668969" , 
+  uygulama kimliği : "1:382310668969:web:ccbcbfd7763a8df249a7b8" , 
+  ölçümKimliği : "G-P0FYN9XJR6" 
+};
+
+// Firebase'ı Başlat
+sabit uygulama = Uygulamayı başlat ( firebaseConfig );
+sabit analitik = getAnalytics ( uygulama );
+Not: Bu seçenek , SDK boyutunu küçülten modüler JavaScript SDK'sını kullanır.
+
+Web için Firebase hakkında daha fazla bilgi edinin: Başlarken , Web SDK API Başvurusu , Örnekler
+
+Bitiriyorum…
+Node.js için Genkit Genel Olarak Kullanılabilir
+Imagen 3 modellerini kullanarak görüntüler oluşturun
+Node.js için Genkit Genel Olarak Kullanılabilir
+Imagen 3 modellerini kullanarak görüntüler oluşturun
+300$ ücretsiz krediyi nasıl talep edeceğinizi öğrenmek için yükseltmeyi tıklayın!
