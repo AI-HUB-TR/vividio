@@ -2,6 +2,24 @@ import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { Video, InsertVideo } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
+// Video sahnesi için interface
+interface VideoScene {
+  id: number;
+  text_segment: string;
+  visual_description: string;
+  enhanced_description?: string;
+  imageUrl?: string;
+  startTime?: number;
+  endTime?: number;
+  style?: string;
+}
+
+// Video oluşturma için genişletilmiş VideoData interface'i
+interface VideoData extends Omit<InsertVideo, 'sections'> {
+  sections?: any;
+  scenes?: VideoScene[];
+}
+
 interface VideoState {
   videos: Video[];
   currentVideo: Video | null;
@@ -43,10 +61,44 @@ export const fetchVideoById = createAsyncThunk(
 
 export const createVideo = createAsyncThunk(
   "video/createVideo",
-  async (videoData: InsertVideo, { rejectWithValue }) => {
+  async (videoData: VideoData, { rejectWithValue }) => {
     try {
-      const res = await apiRequest("POST", "/api/videos", videoData);
-      return await res.json();
+      // Sahneleri işle: Sahneler varsa sections olarak ekle
+      const processedData: InsertVideo = {
+        ...videoData,
+        sections: videoData.scenes ? JSON.stringify(videoData.scenes) : (videoData.sections ? JSON.stringify(videoData.sections) : null)
+      };
+      
+      // Video oluşturma isteği
+      const res = await apiRequest("POST", "/api/videos", processedData);
+      
+      if (!res.ok) {
+        throw new Error("Video oluşturma başarısız oldu");
+      }
+      
+      const video = await res.json();
+      
+      // Video işleme başlat (asenkron)
+      if (video && video.id) {
+        // API'da video işleme zamanlaması ayarla
+        try {
+          await apiRequest("POST", "/api/ai/create-video", {
+            videoId: video.id,
+            scenes: videoData.scenes,
+            videoOptions: {
+              format: videoData.format,
+              resolution: videoData.resolution,
+              duration: videoData.duration,
+              aiModel: videoData.aiModel || "stable_diffusion_xl"
+            }
+          });
+        } catch (processingError) {
+          console.error("Video işleme başlatılırken hata:", processingError);
+          // İşleme başlatılamasa bile, video kaydedildiği için hata gösterme
+        }
+      }
+      
+      return video;
     } catch (error: any) {
       return rejectWithValue(error.message || "Video oluşturulamadı");
     }

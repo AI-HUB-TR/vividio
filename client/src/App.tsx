@@ -12,6 +12,7 @@ import AdminIndex from "@/pages/admin/index";
 import AdminUsers from "@/pages/admin/users";
 import AdminVideos from "@/pages/admin/videos";
 import AdminSubscriptions from "@/pages/admin/subscriptions";
+import AdminApiConfig from "@/pages/admin/api-config";
 
 function Router() {
   return (
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/videos" component={AdminVideos} />
       <Route path="/admin/subscriptions" component={AdminSubscriptions} />
+      <Route path="/admin/api-config" component={AdminApiConfig} />
       <Route component={NotFound} />
     </Switch>
   );
