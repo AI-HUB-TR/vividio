@@ -46,6 +46,11 @@ import {
 } from "./controllers/ai";
 
 import {
+  summarizeText,
+  analyzeImage
+} from "./controllers/grok";
+
+import {
   getAllApiConfigs,
   updateApiConfig,
   getApiConfigByName
@@ -103,6 +108,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/enhance-scenes", isAuthenticated, enhanceScenes);
   
   // Stok içerik API'leri kaldırıldı
+  
+  // Grok (xAI) API rotaları
+  app.post("/api/grok/summarize", isAuthenticated, summarizeText);
+  app.post("/api/grok/analyze-image", isAuthenticated, analyzeImage);
   
   // API Yapılandırma Rotaları
   app.get("/api/admin/api-configs", isAuthenticated, isAdmin, getAllApiConfigs);

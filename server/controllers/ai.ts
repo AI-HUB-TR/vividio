@@ -184,7 +184,7 @@ export async function createVideo(req: Request, res: Response) {
 // Sahne içeriğini geliştirme endpoint'i
 export async function enhanceScenes(req: Request, res: Response) {
   try {
-    const { scenes } = req.body;
+    const { scenes, useGrok = false } = req.body;
     
     if (!scenes || !scenes.length) {
       return res.status(400).json({ error: "Sahne listesi gereklidir" });
@@ -220,13 +220,15 @@ export async function enhanceScenes(req: Request, res: Response) {
       });
     }
     
-    // Groq API ile sahne içeriğini geliştir
-    const enhancedScenes = await enhanceSceneContent(scenes);
+    // Seçilen AI modeli ile sahne içeriğini geliştir
+    const modelName = useGrok ? "Grok" : "Llama3";
+    const enhancedScenes = await enhanceSceneContent(scenes, useGrok);
     
     // Başarılı yanıt
     res.json({ 
       enhancedScenes,
-      message: "Sahne içeriği başarıyla geliştirildi"
+      model: modelName,
+      message: `Sahne içeriği ${modelName} modeli kullanılarak başarıyla geliştirildi`
     });
   } catch (error: any) {
     console.error("Enhance scenes error:", error);

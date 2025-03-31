@@ -134,9 +134,17 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
   }
 }
 
-// Groq API ile sahne içeriğini geliştirme
-export async function enhanceSceneContent(scenes: any[]) {
+// AI ile sahne içeriğini geliştirme (Groq ve xAI/Grok modellerini kullanabilir)
+export async function enhanceSceneContent(scenes: any[], useGrok: boolean = false) {
   try {
+    // Eğer Grok modeli kullanılacaksa
+    if (useGrok) {
+      // Lazy import: enhanceScenesWithGrok fonksiyonunu sadece gerektiğinde yükle
+      const { enhanceScenesWithGrok } = await import('./grok');
+      return await enhanceScenesWithGrok(scenes);
+    } 
+    
+    // Varsayılan olarak Groq kullanımı
     const enhancedScenes = [];
     
     for (const scene of scenes) {
