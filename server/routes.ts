@@ -37,6 +37,13 @@ import {
   banUser
 } from "./controllers/admin";
 
+import {
+  generateVideoScenes,
+  generateSceneImage,
+  createVideo as createAIVideo,
+  checkVideoStatus
+} from "./controllers/ai";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create memory store for sessions
   const MemorySessionStore = MemoryStore(session);
@@ -80,6 +87,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/videos", isAuthenticated, isAdmin, getAllVideos);
   app.put("/api/admin/users/:id/role", isAuthenticated, isAdmin, updateUserRole);
   app.post("/api/admin/users/:id/ban", isAuthenticated, isAdmin, banUser);
+  
+  // AI Video Generation routes
+  app.post("/api/ai/generate-scenes", isAuthenticated, generateVideoScenes);
+  app.post("/api/ai/generate-image", isAuthenticated, generateSceneImage);
+  app.post("/api/ai/create-video", isAuthenticated, createAIVideo);
+  app.get("/api/ai/video-status/:videoId", isAuthenticated, checkVideoStatus);
   
   const httpServer = createServer(app);
   
