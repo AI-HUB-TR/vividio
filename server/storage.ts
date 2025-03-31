@@ -354,6 +354,16 @@ export class MemStorage implements IStorage {
         name: "GROQ_API_KEY",
         value: process.env.GROQ_API_KEY || "",
         description: "Groq API anahtarı (Llama3 modeli için)"
+      },
+      {
+        name: "XAI_API_KEY",
+        value: process.env.XAI_API_KEY || "",
+        description: "xAI/Grok API anahtarı"
+      },
+      {
+        name: "GROK_ENABLED",
+        value: "false",
+        description: "xAI/Grok API entegrasyonunu etkinleştir (true/false)"
       }
     ];
     

@@ -26,7 +26,7 @@ export default function Navbar() {
   };
   
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-background border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
@@ -40,33 +40,33 @@ export default function Navbar() {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="h-6 w-6 text-primary-600 mr-2"
+                  className="h-6 w-6 text-primary mr-2"
                 >
                   <path d="m4 8 2-2m0 0 2-2M6 6 4 4m2 2 2 2" />
                   <rect width="12" height="12" x="8" y="8" rx="2" />
                   <path d="m15 13-2 2-1-1" />
                 </svg>
-                <span className="font-display font-bold text-xl text-primary-600">VidAI</span>
+                <span className="font-display font-bold text-xl text-primary">VidAI</span>
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
               <Link href="/">
-                <a className={`px-3 py-2 text-sm font-medium ${location === "/" ? "text-primary-600 border-b-2 border-primary-600" : "text-gray-500 hover:text-gray-700"}`}>
+                <a className={`px-3 py-2 text-sm font-medium ${location === "/" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Ana Sayfa
                 </a>
               </Link>
               <Link href="/features">
-                <a className={`px-3 py-2 text-sm font-medium ${location === "/features" ? "text-primary-600 border-b-2 border-primary-600" : "text-gray-500 hover:text-gray-700"}`}>
+                <a className={`px-3 py-2 text-sm font-medium ${location === "/features" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Özellikler
                 </a>
               </Link>
               <Link href="/pricing">
-                <a className={`px-3 py-2 text-sm font-medium ${location === "/pricing" ? "text-primary-600 border-b-2 border-primary-600" : "text-gray-500 hover:text-gray-700"}`}>
+                <a className={`px-3 py-2 text-sm font-medium ${location === "/pricing" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   Fiyatlandırma
                 </a>
               </Link>
               <Link href="/faq">
-                <a className={`px-3 py-2 text-sm font-medium ${location === "/faq" ? "text-primary-600 border-b-2 border-primary-600" : "text-gray-500 hover:text-gray-700"}`}>
+                <a className={`px-3 py-2 text-sm font-medium ${location === "/faq" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"}`}>
                   SSS
                 </a>
               </Link>
@@ -76,13 +76,13 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link href="/dashboard">
-                  <a className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700">
+                  <a className="px-4 py-2 text-sm font-medium text-primary hover:text-primary/90">
                     Dashboard
                   </a>
                 </Link>
                 {user?.role === "admin" && (
                   <Link href="/admin">
-                    <a className="ml-4 px-4 py-2 text-sm font-medium text-white bg-gray-800 rounded-md shadow-sm hover:bg-gray-900">
+                    <a className="ml-4 px-4 py-2 text-sm font-medium text-foreground bg-accent rounded-md shadow-sm hover:bg-accent/90">
                       Yönetim Paneli
                     </a>
                   </Link>
@@ -125,22 +125,22 @@ export default function Navbar() {
               <SheetContent side="right">
                 <div className="flex flex-col gap-4 mt-6">
                   <Link href="/">
-                    <a className={`px-3 py-2 text-sm font-medium ${location === "/" ? "text-primary-600" : "text-gray-500"}`}>
+                    <a className={`px-3 py-2 text-sm font-medium ${location === "/" ? "text-primary" : "text-muted-foreground"}`}>
                       Ana Sayfa
                     </a>
                   </Link>
                   <Link href="/features">
-                    <a className={`px-3 py-2 text-sm font-medium ${location === "/features" ? "text-primary-600" : "text-gray-500"}`}>
+                    <a className={`px-3 py-2 text-sm font-medium ${location === "/features" ? "text-primary" : "text-muted-foreground"}`}>
                       Özellikler
                     </a>
                   </Link>
                   <Link href="/pricing">
-                    <a className={`px-3 py-2 text-sm font-medium ${location === "/pricing" ? "text-primary-600" : "text-gray-500"}`}>
+                    <a className={`px-3 py-2 text-sm font-medium ${location === "/pricing" ? "text-primary" : "text-muted-foreground"}`}>
                       Fiyatlandırma
                     </a>
                   </Link>
                   <Link href="/faq">
-                    <a className={`px-3 py-2 text-sm font-medium ${location === "/faq" ? "text-primary-600" : "text-gray-500"}`}>
+                    <a className={`px-3 py-2 text-sm font-medium ${location === "/faq" ? "text-primary" : "text-muted-foreground"}`}>
                       SSS
                     </a>
                   </Link>
@@ -150,13 +150,13 @@ export default function Navbar() {
                   {isAuthenticated ? (
                     <>
                       <Link href="/dashboard">
-                        <a className="px-3 py-2 text-sm font-medium text-primary-600">
+                        <a className="px-3 py-2 text-sm font-medium text-primary">
                           Dashboard
                         </a>
                       </Link>
                       {user?.role === "admin" && (
                         <Link href="/admin">
-                          <a className="px-3 py-2 text-sm font-medium text-gray-800">
+                          <a className="px-3 py-2 text-sm font-medium text-foreground">
                             Yönetim Paneli
                           </a>
                         </Link>

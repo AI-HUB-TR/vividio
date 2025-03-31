@@ -139,9 +139,26 @@ export async function enhanceSceneContent(scenes: any[], useGrok: boolean = fals
   try {
     // Eğer Grok modeli kullanılacaksa
     if (useGrok) {
-      // Lazy import: enhanceScenesWithGrok fonksiyonunu sadece gerektiğinde yükle
-      const { enhanceScenesWithGrok } = await import('./grok');
-      return await enhanceScenesWithGrok(scenes);
+      try {
+        // Yönetim panelinden Grok'un etkin olup olmadığını kontrol et
+        const { storage } = await import('../storage');
+        const isEnabledConfig = await storage.getApiConfig("GROK_ENABLED");
+        const isEnabled = isEnabledConfig?.value === "true";
+        
+        if (!isEnabled) {
+          console.log("Grok entegrasyonu devre dışı, Llama3 kullanılıyor");
+          // Grok devre dışı bırakılmışsa Llama3'e geri dön
+          useGrok = false;
+        } else {
+          // Lazy import: enhanceScenesWithGrok fonksiyonunu sadece gerektiğinde yükle
+          const { enhanceScenesWithGrok } = await import('./grok');
+          return await enhanceScenesWithGrok(scenes);
+        }
+      } catch (grokError) {
+        console.error("Grok servisi başlatılamadı, Llama3 kullanılıyor:", grokError);
+        // Hata durumunda Llama3'e geri dön
+        useGrok = false;
+      }
     } 
     
     // Varsayılan olarak Groq kullanımı
