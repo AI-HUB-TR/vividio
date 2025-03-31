@@ -91,6 +91,53 @@ export class MemStorage implements IStorage {
     
     // Initialize default API configurations
     this.initApiConfigs();
+    
+    // Initialize default admin user
+    this.initAdminUser();
+  }
+  
+  // Initialize default admin user
+  private initAdminUser() {
+    // Check if admin already exists
+    const adminExists = Array.from(this.users.values()).some(
+      (user) => user.email === "iletisimofisi@gmail.com" && user.role === "admin"
+    );
+    
+    if (!adminExists) {
+      // Create admin user with password "şifZb1325*-"
+      const adminUser: User = {
+        id: this.userId++,
+        username: "admin",
+        email: "iletisimofisi@gmail.com",
+        displayName: "Sistem Yöneticisi",
+        password: "şifZb1325*-", // In production, this should be hashed
+        authProvider: null,
+        providerId: null,
+        profileImageUrl: null,
+        role: "admin",
+        createdAt: new Date()
+      };
+      
+      this.users.set(adminUser.id, adminUser);
+      
+      // Assign admin to Pro subscription
+      const proPlan = Array.from(this.subscriptionPlans.values()).find(
+        (plan) => plan.name === "Pro"
+      );
+      
+      if (proPlan) {
+        const adminSubscription: Subscription = {
+          id: this.subscriptionId++,
+          userId: adminUser.id,
+          planId: proPlan.id,
+          startDate: new Date(),
+          endDate: null, // Never expires for admin
+          active: true
+        };
+        
+        this.subscriptions.set(adminSubscription.id, adminSubscription);
+      }
+    }
   }
   
   // Initialize default subscription plans

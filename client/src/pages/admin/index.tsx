@@ -2,391 +2,310 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "wouter";
 import { RootState } from "@/store/store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
+import { isAdmin } from "@/lib/auth";
+
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from "recharts";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+
 import {
   Users,
-  Video,
-  CreditCard,
-  AlertCircle
+  FilmIcon,
+  Settings,
+  AreaChart,
+  ShieldCheck,
+  CircleDollarSign,
+  CalendarRange,
+  Layout,
 } from "lucide-react";
 
-interface DashboardStats {
-  userCount: number;
-  videoCount: number;
-  revenueTotal: number;
-}
+import AdminSidebar from "@/components/admin/sidebar";
 
-export default function AdminIndex() {
-  const [location, setLocation] = useLocation();
+export default function AdminDashboard() {
+  const [, navigate] = useLocation();
   const { user, isAuthenticated, loading } = useSelector((state: RootState) => state.auth);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Check if user is admin
-  const isAdmin = user?.role === "admin";
-
-  // Redirect non-admin users
+  
+  const [stats, setStats] = useState({
+    userCount: 0,
+    videoCount: 0,
+    revenue: 0,
+  });
+  
+  const [statsLoading, setStatsLoading] = useState(true);
+  
   useEffect(() => {
-    if (!loading && isAuthenticated && !isAdmin) {
-      setLocation("/dashboard");
-    } else if (!loading && !isAuthenticated) {
-      setLocation("/");
+    // Kimlik doğrulama kontrolü
+    if (!loading && (!isAuthenticated || !isAdmin(user))) {
+      navigate("/");
+      return;
     }
-  }, [isAdmin, isAuthenticated, loading, setLocation]);
-
-  // Fetch dashboard stats
-  useEffect(() => {
+    
+    // İstatistikleri yükle
     const fetchStats = async () => {
-      if (!isAuthenticated || !isAdmin) return;
-      
-      setStatsLoading(true);
-      setError(null);
-      
       try {
         const res = await apiRequest("GET", "/api/admin/stats");
-        const data = await res.json();
-        setStats(data);
-      } catch (err) {
-        setError("İstatistikler yüklenirken bir hata oluştu");
-        console.error("Error fetching admin stats:", err);
+        
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error("Admin istatistikleri yüklenirken hata oluştu:", error);
       } finally {
         setStatsLoading(false);
       }
     };
     
-    fetchStats();
-  }, [isAuthenticated, isAdmin]);
-
-  // Sample data for charts
-  const monthlyData = [
-    { name: "Oca", users: 30, videos: 150, revenue: 5000 },
-    { name: "Şub", users: 45, videos: 230, revenue: 7500 },
-    { name: "Mar", users: 55, videos: 280, revenue: 9200 },
-    { name: "Nis", users: 70, videos: 340, revenue: 12000 },
-    { name: "May", users: 85, videos: 390, revenue: 15000 },
-    { name: "Haz", users: 100, videos: 450, revenue: 18000 },
-  ];
+    if (isAuthenticated && isAdmin(user)) {
+      fetchStats();
+    }
+  }, [isAuthenticated, user, loading, navigate]);
   
-  const planData = [
-    { name: "Ücretsiz", value: 65 },
-    { name: "Pro", value: 25 },
-    { name: "Business", value: 10 },
-  ];
-  
-  const formatCurrency = (value: number) => {
-    return `${value}₺`;
-  };
-  
-  const COLORS = ["#CBD5E1", "#3B82F6", "#1E40AF"];
-
-  // Show loading state
-  if (loading) {
+  if (loading || statsLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary-500 border-r-2 border-b-2 border-gray-200 mx-auto mb-4"></div>
-          <p className="text-gray-600">Yükleniyor...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show unauthorized message for non-admin users
-  if (!isAdmin) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-4">Yetkisiz Erişim</h2>
-          <p className="text-gray-600 mb-6">
-            Bu sayfayı görüntülemek için yönetici yetkisine sahip olmanız gerekmektedir.
-          </p>
-          <Link href="/dashboard">
-            <Button>Dashboard'a Dön</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-primary-800 text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <Link href="/">
-            <a className="flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6 mr-2"
-              >
-                <path d="m4 8 2-2m0 0 2-2M6 6 4 4m2 2 2 2" />
-                <rect width="12" height="12" x="8" y="8" rx="2" />
-                <path d="m15 13-2 2-1-1" />
-              </svg>
-              <span className="font-display font-bold text-xl">VidAI Yönetim</span>
-            </a>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard">
-              <Button variant="outline" className="text-white border-white hover:bg-primary-700">
-                Dashboard'a Dön
-              </Button>
-            </Link>
+      <div className="container py-8">
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"></div>
+          <div>
+            <div className="h-4 w-48 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-3 w-24 bg-gray-200 rounded mt-2 animate-pulse"></div>
           </div>
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg animate-pulse"></div>
+          ))}
+        </div>
       </div>
+    );
+  }
+  
+  return (
+    <div className="flex">
+      <AdminSidebar />
       
-      <div className="container mx-auto p-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-display font-bold text-gray-900">Yönetim Paneli</h1>
-          <p className="text-gray-500">VidAI platformu hakkında genel istatistikler.</p>
+      <div className="flex-1 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Yönetici Paneli</h1>
+            <p className="text-muted-foreground">
+              VidAI platformunu yönetin ve izleyin
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center bg-primary/10 px-3 py-1 rounded-full">
+              <ShieldCheck className="h-4 w-4 text-primary mr-2" />
+              <span className="text-sm font-medium">Admin</span>
+            </div>
+          </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Toplam Kullanıcı</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <div className="h-9 animate-pulse bg-gray-200 rounded"></div>
-              ) : error ? (
-                <div className="text-red-500 text-sm">Hata: Yüklenemedi</div>
-              ) : stats ? (
-                <div className="text-2xl font-bold">{stats.userCount.toLocaleString()}</div>
-              ) : (
-                <div className="text-2xl font-bold">0</div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {stats && `Son 30 günde %12 artış`}
-              </p>
-              <div className="mt-4">
-                <Link href="/admin/users">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Kullanıcıları Görüntüle
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="overview">
+          <TabsList>
+            <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
+            <TabsTrigger value="settings">Site Ayarları</TabsTrigger>
+          </TabsList>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Oluşturulan Video</CardTitle>
-              <Video className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <div className="h-9 animate-pulse bg-gray-200 rounded"></div>
-              ) : error ? (
-                <div className="text-red-500 text-sm">Hata: Yüklenemedi</div>
-              ) : stats ? (
-                <div className="text-2xl font-bold">{stats.videoCount.toLocaleString()}</div>
-              ) : (
-                <div className="text-2xl font-bold">0</div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {stats && `Son 30 günde %25 artış`}
-              </p>
-              <div className="mt-4">
-                <Link href="/admin/videos">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Videoları Görüntüle
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Toplam Kullanıcı
+                  </CardTitle>
+                  <CardDescription>
+                    Platformdaki kayıtlı kullanıcı sayısı
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold">{stats.userCount}</div>
+                    <Users className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Toplam Video
+                  </CardTitle>
+                  <CardDescription>
+                    Platformda oluşturulan video sayısı
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold">{stats.videoCount}</div>
+                    <FilmIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Toplam Gelir
+                  </CardTitle>
+                  <CardDescription>
+                    Aboneliklerden elde edilen aylık gelir
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="text-2xl font-bold">{stats.revenue} ₺</div>
+                    <CircleDollarSign className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              <Card className="col-span-1 lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Hızlı Erişim</CardTitle>
+                  <CardDescription>
+                    Platform yönetimi için hızlı erişim bağlantıları
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card
+                      className="cursor-pointer hover:bg-accent transition-colors group"
+                      onClick={() => navigate("/admin/users")}
+                    >
+                      <CardContent className="p-6 flex flex-col items-center justify-center">
+                        <Users className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-sm font-medium">Kullanıcılar</span>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card
+                      className="cursor-pointer hover:bg-accent transition-colors group"
+                      onClick={() => navigate("/admin/videos")}
+                    >
+                      <CardContent className="p-6 flex flex-col items-center justify-center">
+                        <FilmIcon className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-sm font-medium">Videolar</span>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card
+                      className="cursor-pointer hover:bg-accent transition-colors group" 
+                      onClick={() => navigate("/admin/subscriptions")}
+                    >
+                      <CardContent className="p-6 flex flex-col items-center justify-center">
+                        <CalendarRange className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-sm font-medium">Abonelikler</span>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card
+                      className="cursor-pointer hover:bg-accent transition-colors group"
+                      onClick={() => navigate("/admin/api-config")}
+                    >
+                      <CardContent className="p-6 flex flex-col items-center justify-center">
+                        <Settings className="h-8 w-8 mb-2 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="text-sm font-medium">API Ayarları</span>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
           
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aylık Gelir</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <div className="h-9 animate-pulse bg-gray-200 rounded"></div>
-              ) : error ? (
-                <div className="text-red-500 text-sm">Hata: Yüklenemedi</div>
-              ) : stats ? (
-                <div className="text-2xl font-bold">{stats.revenueTotal.toLocaleString()}₺</div>
-              ) : (
-                <div className="text-2xl font-bold">0₺</div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                {stats && `Son 30 günde %18 artış`}
-              </p>
-              <div className="mt-4">
-                <Link href="/admin/subscriptions">
-                  <Button variant="outline" size="sm" className="w-full">
-                    Abonelikleri Görüntüle
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Aylık İstatistikler</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={monthlyData}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" orientation="left" stroke="#3B82F6" />
-                    <YAxis yAxisId="right" orientation="right" stroke="#10B981" />
-                    <Tooltip formatter={(value, name) => {
-                      if (name === "revenue") return formatCurrency(value as number);
-                      return value;
-                    }} />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="users" name="Kullanıcılar" fill="#3B82F6" />
-                    <Bar yAxisId="left" dataKey="videos" name="Videolar" fill="#CBD5E1" />
-                    <Bar yAxisId="right" dataKey="revenue" name="Gelir (₺)" fill="#10B981" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Abonelik Dağılımı</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={planData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {planData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value, name) => [`${value}%`, name]} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="grid grid-cols-1 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Hızlı Erişim</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-                <Link href="/admin/users">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="mr-2 h-4 w-4" />
-                    Kullanıcı Yönetimi
-                  </Button>
-                </Link>
-                
-                <Link href="/admin/videos">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Video className="mr-2 h-4 w-4" />
-                    Video Yönetimi
-                  </Button>
-                </Link>
-                
-                <Link href="/admin/subscriptions">
-                  <Button variant="outline" className="w-full justify-start">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Abonelik Yönetimi
-                  </Button>
-                </Link>
-                
-                <Link href="/admin/api-config">
-                  <Button variant="outline" className="w-full justify-start bg-primary-50">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-2 h-4 w-4"
-                    >
-                      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    API Yapılandırması
-                  </Button>
-                </Link>
-
-                <Link href="/dashboard">
-                  <Button variant="outline" className="w-full justify-start">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-2 h-4 w-4"
-                    >
-                      <path d="m4 8 2-2m0 0 2-2M6 6 4 4m2 2 2 2" />
-                      <rect width="12" height="12" x="8" y="8" rx="2" />
-                      <path d="m15 13-2 2-1-1" />
-                    </svg>
-                    Dashboard'a Dön
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="settings" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Site Ayarları</CardTitle>
+                <CardDescription>
+                  VidAI platformunun genel ayarlarını yönetin
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium">Görünüm Ayarları</h3>
+                    <Separator className="my-3" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="cursor-pointer hover:bg-accent transition-colors group">
+                        <CardContent className="p-4 flex items-center space-x-4">
+                          <Layout className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Site Temaları</p>
+                            <p className="text-sm text-muted-foreground">
+                              Platform temasını ve renklerini değiştirin
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="cursor-pointer hover:bg-accent transition-colors group"
+                        onClick={() => navigate("/admin/api-config")}>
+                        <CardContent className="p-4 flex items-center space-x-4">
+                          <Settings className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">API Yapılandırması</p>
+                            <p className="text-sm text-muted-foreground">
+                              API anahtarlarını ve entegrasyonları yönetin
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium">İçerik Yönetimi</h3>
+                    <Separator className="my-3" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="cursor-pointer hover:bg-accent transition-colors group"
+                        onClick={() => navigate("/admin/videos")}>
+                        <CardContent className="p-4 flex items-center space-x-4">
+                          <FilmIcon className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Video Yönetimi</p>
+                            <p className="text-sm text-muted-foreground">
+                              Tüm videoları görüntüleyin ve yönetin
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="cursor-pointer hover:bg-accent transition-colors group"
+                        onClick={() => navigate("/admin/users")}>
+                        <CardContent className="p-4 flex items-center space-x-4">
+                          <Users className="h-6 w-6 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Kullanıcı Yönetimi</p>
+                            <p className="text-sm text-muted-foreground">
+                              Kullanıcıları yönetin ve rolleri düzenleyin
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

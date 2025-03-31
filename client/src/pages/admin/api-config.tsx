@@ -2,468 +2,414 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useLocation } from "wouter";
 import { RootState } from "@/store/store";
-import { 
-  Card, 
-  CardContent,
-  CardDescription, 
-  CardHeader, 
-  CardTitle
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/queryClient";
-import { Link } from "wouter";
-import { AlertCircle, Settings, Save, RefreshCw, CheckCircle, Database } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { isAdmin } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
-// API yapılandırma tiplerini tanımla
-interface ApiConfig {
-  id: number;
-  name: string;
-  value: string | null;
-  description: string | null;
-  updatedAt: Date;
-}
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Tab'ları grupla
-type ApiTabGroup = {
-  title: string;
-  description: string;
-  configs: ApiConfig[];
-  icon: React.ReactNode;
-};
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+
+import {
+  Database,
+  Key,
+  RefreshCw,
+  Save,
+  Check,
+  X,
+  AlertCircle,
+  Info,
+  Sparkles,
+  Bot,
+  Settings,
+  FileImage,
+  Video,
+  FileVideo,
+  Code,
+} from "lucide-react";
+
+import AdminSidebar from "@/components/admin/sidebar";
+
+// API yapılandırma formu şeması
+const apiConfigSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  value: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type ApiConfig = z.infer<typeof apiConfigSchema>;
 
 export default function ApiConfigPage() {
-  const [location, setLocation] = useLocation();
-  const { user, isAuthenticated, loading } = useSelector((state: RootState) => state.auth);
-  const [apiConfigs, setApiConfigs] = useState<ApiConfig[]>([]);
-  const [configsLoading, setConfigsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-
-  // Check if user is admin
-  const isAdmin = user?.role === "admin";
-
-  // Redirect non-admin users
+  const { user, isAuthenticated, loading } = useSelector((state: RootState) => state.auth);
+  
+  const [apiConfigs, setApiConfigs] = useState<ApiConfig[]>([]);
+  const [configsLoading, setConfigsLoading] = useState(true);
+  const [updatingConfig, setUpdatingConfig] = useState<number | null>(null);
+  
+  // Kimlik doğrulama kontrolü
   useEffect(() => {
-    if (!loading && isAuthenticated && !isAdmin) {
-      setLocation("/dashboard");
-    } else if (!loading && !isAuthenticated) {
-      setLocation("/");
+    if (!loading && (!isAuthenticated || !isAdmin(user))) {
+      navigate("/");
+      return;
     }
-  }, [isAdmin, isAuthenticated, loading, setLocation]);
-
-  // Fetch API configs
-  useEffect(() => {
+    
+    // API konfigürasyonlarını yükle
     const fetchApiConfigs = async () => {
-      if (!isAuthenticated || !isAdmin) return;
-      
-      setConfigsLoading(true);
-      setError(null);
-      
       try {
         const res = await apiRequest("GET", "/api/admin/api-configs");
-        const data = await res.json();
-        setApiConfigs(data);
-      } catch (err) {
-        setError("API yapılandırmaları yüklenirken bir hata oluştu");
-        console.error("Error fetching API configs:", err);
+        
+        if (res.ok) {
+          const data = await res.json();
+          setApiConfigs(data);
+        }
+      } catch (error) {
+        console.error("API yapılandırmaları yüklenirken hata oluştu:", error);
       } finally {
         setConfigsLoading(false);
       }
     };
     
-    fetchApiConfigs();
-  }, [isAuthenticated, isAdmin]);
-
-  // Update API config
-  const updateApiConfig = async (name: string, value: string) => {
-    setSaving(true);
-    setError(null);
+    if (isAuthenticated && isAdmin(user)) {
+      fetchApiConfigs();
+    }
+  }, [isAuthenticated, user, loading, navigate]);
+  
+  // API yapılandırmasını güncelleme
+  const updateApiConfig = async (config: ApiConfig) => {
+    setUpdatingConfig(config.id);
     
     try {
-      const res = await apiRequest("PUT", "/api/admin/api-configs", {
-        name,
-        value
-      });
+      const res = await apiRequest("PUT", "/api/admin/api-configs", config);
       
-      if (!res.ok) {
-        throw new Error("API yapılandırması güncellenirken bir hata oluştu");
+      if (res.ok) {
+        const updatedConfig = await res.json();
+        
+        // Başarılı güncelleme, yerel durumu güncelle
+        setApiConfigs(prevConfigs => 
+          prevConfigs.map(c => 
+            c.id === updatedConfig.id ? updatedConfig : c
+          )
+        );
+        
+        toast({
+          title: "Yapılandırma güncellendi",
+          description: `${config.name} başarıyla güncellendi.`,
+        });
+      } else {
+        throw new Error("Yapılandırma güncellenirken bir hata oluştu.");
       }
-      
-      // Update the local state
-      setApiConfigs(prev => 
-        prev.map(config => 
-          config.name === name 
-            ? { ...config, value, updatedAt: new Date() } 
-            : config
-        )
-      );
-      
-      // Show success message
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 2000);
-      
-      toast({
-        title: "Başarılı",
-        description: `${name} başarıyla güncellendi.`,
-        variant: "default",
-      });
-      
-    } catch (err) {
-      setError("API yapılandırması güncellenirken bir hata oluştu");
-      console.error("Error updating API config:", err);
-      
+    } catch (error) {
+      console.error("API yapılandırması güncellenirken hata:", error);
       toast({
         title: "Hata",
         description: "API yapılandırması güncellenirken bir hata oluştu.",
         variant: "destructive",
       });
     } finally {
-      setSaving(false);
+      setUpdatingConfig(null);
     }
   };
-
-  // Organize configs into tab groups
-  const getApiTabGroups = (): ApiTabGroup[] => {
-    const huggingfaceConfigs = apiConfigs.filter(c => c.name.includes("HUGGINGFACE"));
-    const deepseekConfigs = apiConfigs.filter(c => c.name.includes("DEEPSEEK"));
-    const geminiConfigs = apiConfigs.filter(c => c.name.includes("GEMINI"));
-    const groqConfigs = apiConfigs.filter(c => c.name.includes("GROQ"));
-    const grokConfigs = apiConfigs.filter(c => c.name.includes("GROK") || c.name.includes("XAI"));
-    const generalConfigs = apiConfigs.filter(c => 
-      !c.name.includes("HUGGINGFACE") && 
-      !c.name.includes("DEEPSEEK") && 
-      !c.name.includes("GEMINI") && 
-      !c.name.includes("GROQ") && 
-      !c.name.includes("GROK") && 
-      !c.name.includes("XAI")
-    );
-    
-    return [
-      {
-        title: "Genel Ayarlar",
-        description: "Temel API yapılandırma ayarları",
-        configs: generalConfigs,
-        icon: <Settings className="h-5 w-5" />
-      },
-      {
-        title: "Hugging Face",
-        description: "Hugging Face API yapılandırma ayarları",
-        configs: huggingfaceConfigs,
-        icon: <Database className="h-5 w-5" />
-      },
-      {
-        title: "DeepSeek",
-        description: "DeepSeek API yapılandırma ayarları",
-        configs: deepseekConfigs,
-        icon: <Database className="h-5 w-5" />
-      },
-      {
-        title: "Gemini",
-        description: "Gemini API yapılandırma ayarları",
-        configs: geminiConfigs,
-        icon: <Database className="h-5 w-5" />
-      },
-      {
-        title: "Groq",
-        description: "Groq API yapılandırma ayarları",
-        configs: groqConfigs,
-        icon: <Database className="h-5 w-5" />
-      },
-      {
-        title: "Grok (xAI)",
-        description: "Grok (xAI) API yapılandırma ayarları",
-        configs: grokConfigs,
-        icon: <Database className="h-5 w-5" />
-      }
-    ];
-  };
-
-  // Handling boolean values for switches
-  const getBooleanValue = (value: string | null): boolean => {
-    return value === "true";
-  };
-
-  // Toggle boolean value
-  const toggleBooleanValue = (name: string, currentValue: string | null) => {
-    const newValue = currentValue === "true" ? "false" : "true";
-    updateApiConfig(name, newValue);
-  };
-
-  // Format the API key to only show last 4 characters
-  const formatApiKey = (key: string | null): string => {
-    if (!key) return "";
-    if (key.length <= 8) return "••••••••";
-    return "••••••••" + key.slice(-4);
-  };
-
-  // Show loading state
-  if (loading) {
+  
+  // Yükleniyor durumu
+  if (loading || configsLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary-500 border-r-2 border-b-2 border-gray-200 mx-auto mb-4"></div>
-          <p className="text-gray-600">Yükleniyor...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show unauthorized message for non-admin users
-  if (!isAdmin) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-4">Yetkisiz Erişim</h2>
-          <p className="text-gray-600 mb-6">
-            Bu sayfayı görüntülemek için yönetici yetkisine sahip olmanız gerekmektedir.
-          </p>
-          <Link href="/dashboard">
-            <Button>Dashboard'a Dön</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const tabGroups = getApiTabGroups();
-
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-primary-800 text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <Link href="/admin">
-            <a className="flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-6 w-6 mr-2"
-              >
-                <path d="m4 8 2-2m0 0 2-2M6 6 4 4m2 2 2 2" />
-                <rect width="12" height="12" x="8" y="8" rx="2" />
-                <path d="m15 13-2 2-1-1" />
-              </svg>
-              <span className="font-display font-bold text-xl">VidAI Yönetim</span>
-            </a>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Link href="/admin">
-              <Button variant="outline" className="text-white border-white hover:bg-primary-700">
-                Yönetim Paneline Dön
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-      
-      <div className="container mx-auto p-6">
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-gray-900">API Yapılandırması</h1>
-            <p className="text-gray-500">AI servisleri ve API anahtarlarını yapılandırın.</p>
-          </div>
-          <div className="mt-4 md:mt-0">
-            <Link href="/admin">
-              <Button variant="outline" className="mr-2">
-                Geri
-              </Button>
-            </Link>
-          </div>
-        </div>
-        
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-md flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
-        
-        {configsLoading ? (
-          <Card>
-            <CardContent className="p-8">
-              <div className="flex justify-center items-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-                <span className="ml-2 text-gray-600">API yapılandırmaları yükleniyor...</span>
+      <div className="flex min-h-screen">
+        <AdminSidebar />
+        <div className="flex-1 p-8">
+          <div className="h-8 w-64 bg-gray-200 rounded animate-pulse mb-6"></div>
+          <div className="h-4 w-48 bg-gray-200 rounded animate-pulse mb-12"></div>
+          
+          <div className="space-y-6">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="rounded-lg border p-6 animate-pulse">
+                <div className="h-6 w-48 bg-gray-200 rounded mb-4"></div>
+                <div className="h-10 w-full bg-gray-200 rounded"></div>
               </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Tabs defaultValue={tabGroups[0]?.title}>
-            <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-4">
-              {tabGroups.map((group) => (
-                <TabsTrigger key={group.title} value={group.title} className="flex items-center">
-                  {group.icon}
-                  <span className="ml-2 hidden md:inline">{group.title}</span>
-                </TabsTrigger>
-              ))}
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // API gruplarına göre yapılandırmaları ayır
+  const huggingFaceConfigs = apiConfigs.filter(config => 
+    config.name.includes("HUGGINGFACE")
+  );
+  
+  const aiModelConfigs = apiConfigs.filter(config => 
+    config.name.includes("GEMINI") ||
+    config.name.includes("DEEPSEEK") ||
+    config.name.includes("GROQ")
+  );
+  
+  const xaiConfigs = apiConfigs.filter(config => 
+    config.name.includes("XAI") ||
+    config.name.includes("GROK")
+  );
+  
+  const stockConfigs = apiConfigs.filter(config => 
+    config.name.includes("PEXELS") ||
+    config.name.includes("UNSPLASH")
+  );
+  
+  // API anahtar formunu oluşturan komponent
+  const ApiKeyFormItem = ({ config }: { config: ApiConfig }) => {
+    const form = useForm<ApiConfig>({
+      resolver: zodResolver(apiConfigSchema),
+      defaultValues: config,
+    });
+    
+    const onSubmit = (data: ApiConfig) => {
+      updateApiConfig(data);
+    };
+    
+    return (
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="value"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex justify-between items-center">
+                  <FormLabel className="text-base">{config.name}</FormLabel>
+                  {updatingConfig === config.id ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    form.formState.isDirty && (
+                      <span className="text-xs text-yellow-500 italic">Değişiklikler kaydedilmedi</span>
+                    )
+                  )}
+                </div>
+                <FormDescription>
+                  {config.description}
+                </FormDescription>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type={config.name.includes("KEY") || config.name.includes("TOKEN") ? "password" : "text"}
+                      value={field.value || ""}
+                      placeholder={`${config.name} değerini girin`}
+                    />
+                  </FormControl>
+                  <Button 
+                    type="submit" 
+                    disabled={updatingConfig === config.id || !form.formState.isDirty}
+                    size="sm"
+                  >
+                    <Save className="h-4 w-4 mr-1" />
+                    Kaydet
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </form>
+      </Form>
+    );
+  };
+  
+  // Boolean değerli yapılandırma formu (etkin/devre dışı)
+  const ApiToggleFormItem = ({ config }: { config: ApiConfig }) => {
+    const form = useForm<ApiConfig>({
+      resolver: zodResolver(apiConfigSchema),
+      defaultValues: config,
+    });
+    
+    const onToggleChange = (checked: boolean) => {
+      const newValue = checked ? "true" : "false";
+      form.setValue("value", newValue, { shouldDirty: true });
+      updateApiConfig({ ...config, value: newValue });
+    };
+    
+    const isEnabled = config.value === "true";
+    
+    return (
+      <div className="flex items-center justify-between py-4">
+        <div className="space-y-0.5">
+          <div className="text-base font-medium">{config.name}</div>
+          <div className="text-sm text-muted-foreground">{config.description}</div>
+        </div>
+        <Switch
+          checked={isEnabled}
+          onCheckedChange={onToggleChange}
+          disabled={updatingConfig === config.id}
+        />
+      </div>
+    );
+  };
+  
+  return (
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      
+      <div className="flex-1 p-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold">API Yapılandırması</h1>
+            <p className="text-muted-foreground">
+              Platform için kullanılan API anahtarlarını ve servis entegrasyonlarını yönetin
+            </p>
+          </div>
+          
+          <Tabs defaultValue="ai-models">
+            <TabsList className="mb-6">
+              <TabsTrigger value="ai-models">
+                <Bot className="h-4 w-4 mr-2" />
+                AI Modelleri
+              </TabsTrigger>
+              <TabsTrigger value="media">
+                <FileImage className="h-4 w-4 mr-2" />
+                Medya Servisleri
+              </TabsTrigger>
+              <TabsTrigger value="grok">
+                <Sparkles className="h-4 w-4 mr-2" />
+                xAI/Grok
+              </TabsTrigger>
             </TabsList>
             
-            {tabGroups.map((group) => (
-              <TabsContent key={group.title} value={group.title}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{group.title}</CardTitle>
-                    <CardDescription>{group.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {group.configs.length === 0 ? (
-                      <p className="text-gray-500 italic">Bu grupta yapılandırma bulunmuyor.</p>
-                    ) : (
-                      <div className="grid gap-6">
-                        {group.configs.map((config) => (
-                          <div key={config.id} className="p-4 rounded-lg border border-gray-200">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                              <div>
-                                <h3 className="font-semibold text-lg">{config.name}</h3>
-                                {config.description && (
-                                  <p className="text-sm text-gray-500">{config.description}</p>
-                                )}
-                                <p className="text-xs text-gray-400 mt-1">
-                                  Son güncelleme: {new Date(config.updatedAt).toLocaleString()}
-                                </p>
-                              </div>
-                              
-                              {/* API anahtarı ise farklı gösterim yap */}
-                              {config.name.includes("_API_KEY") ? (
-                                <div className="mt-4 md:mt-0 grid gap-2">
-                                  <div className="flex items-center space-x-2">
-                                    <Input 
-                                      type="password" 
-                                      value={formatApiKey(config.value)} 
-                                      readOnly 
-                                      className="max-w-xs"
-                                    />
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => {
-                                        // Burada API anahtarını göster/gizle mantığı olabilir
-                                        toast({
-                                          title: "Bilgi",
-                                          description: "Güvenlik nedeniyle API anahtarları gizlenir. Yeni bir anahtar eklemek için güncelleme yapın.",
-                                        });
-                                      }}
-                                    >
-                                      Göster
-                                    </Button>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <div className="grid w-full max-w-xs items-center gap-1.5">
-                                      <Label htmlFor={`api-key-${config.id}`}>Yeni API Anahtarı</Label>
-                                      <div className="flex space-x-2">
-                                        <Input 
-                                          id={`api-key-${config.id}`}
-                                          type="password"
-                                          placeholder="yeni API anahtarı girin"
-                                          className="max-w-xs"
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              updateApiConfig(config.name, e.currentTarget.value);
-                                              e.currentTarget.value = "";
-                                            }
-                                          }}
-                                        />
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm"
-                                          onClick={(e) => {
-                                            const input = document.getElementById(`api-key-${config.id}`) as HTMLInputElement;
-                                            updateApiConfig(config.name, input.value);
-                                            input.value = "";
-                                          }}
-                                        >
-                                          Güncelle
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : config.name.includes("_ENABLED") ? (
-                                // Switch komponenti kullan (enabled/disabled ayarları için)
-                                <div className="mt-4 md:mt-0 flex items-center space-x-4">
-                                  <span className="text-sm text-gray-500">
-                                    {getBooleanValue(config.value) ? "Etkin" : "Devre Dışı"}
-                                  </span>
-                                  <Switch 
-                                    checked={getBooleanValue(config.value)}
-                                    onCheckedChange={() => toggleBooleanValue(config.name, config.value)}
-                                  />
-                                </div>
-                              ) : (
-                                // Normal metin girişi
-                                <div className="mt-4 md:mt-0 grid gap-2">
-                                  <div className="flex items-center space-x-2">
-                                    <Input 
-                                      type="text" 
-                                      value={config.value || ""}
-                                      className="max-w-xs"
-                                      onChange={(e) => {
-                                        setApiConfigs(prev => 
-                                          prev.map(c => 
-                                            c.id === config.id 
-                                              ? { ...c, value: e.target.value } 
-                                              : c
-                                          )
-                                        );
-                                      }}
-                                      onBlur={(e) => {
-                                        if (e.target.value !== config.value) {
-                                          updateApiConfig(config.name, e.target.value);
-                                        }
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                          updateApiConfig(config.name, e.currentTarget.value);
-                                        }
-                                      }}
-                                    />
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => updateApiConfig(config.name, config.value || "")}
-                                    >
-                                      Kaydet
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+            <TabsContent value="ai-models">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Code className="h-5 w-5 mr-2" />
+                    Hugging Face API
+                  </CardTitle>
+                  <CardDescription>
+                    Görsel üretimi için Hugging Face Inference API yapılandırması
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {huggingFaceConfigs.map((config) => (
+                    <ApiKeyFormItem key={config.id} config={config} />
+                  ))}
+                </CardContent>
+              </Card>
+              
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Bot className="h-5 w-5 mr-2" />
+                    Diğer AI Modelleri
+                  </CardTitle>
+                  <CardDescription>
+                    Metin ve içerik üretimi için kullanılan AI model yapılandırmaları
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {aiModelConfigs.map((config) => (
+                    <ApiKeyFormItem key={config.id} config={config} />
+                  ))}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="media">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileImage className="h-5 w-5 mr-2" />
+                    Stok Görsel Servisleri
+                  </CardTitle>
+                  <CardDescription>
+                    Video içerikleri için stok görsel ve video servisleri yapılandırması
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {stockConfigs.map((config) => (
+                    <ApiKeyFormItem key={config.id} config={config} />
+                  ))}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="grok">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    xAI/Grok Entegrasyonu
+                  </CardTitle>
+                  <CardDescription>
+                    xAI/Grok AI servisleri entegrasyonu yapılandırması
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 mb-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                    <div className="flex items-start">
+                      <Info className="h-5 w-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-yellow-800">Grok AI Entegrasyonu</h4>
+                        <p className="text-sm text-yellow-600 mt-1">
+                          Grok AI, videolarınızın sahne içeriklerini geliştirmek ve görsel analizi için ek bir yapay zeka modelidir.
+                          Kullanmak için önce API anahtarını giriniz, ardından entegrasyonu aktif ediniz.
+                        </p>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {xaiConfigs
+                      .filter(config => config.name === "XAI_API_KEY")
+                      .map(config => (
+                        <ApiKeyFormItem key={config.id} config={config} />
+                      ))
+                    }
+                  </div>
+                  
+                  <Separator className="my-6" />
+                  
+                  {xaiConfigs
+                    .filter(config => config.name === "GROK_ENABLED")
+                    .map(config => (
+                      <ApiToggleFormItem key={config.id} config={config} />
+                    ))
+                  }
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
-        )}
-        
-        {saving && (
-          <div className="fixed bottom-4 right-4 bg-primary-100 text-primary-800 p-4 rounded-md shadow-lg flex items-center">
-            <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-            <span>Kaydediliyor...</span>
-          </div>
-        )}
-        
-        {success && (
-          <div className="fixed bottom-4 right-4 bg-green-100 text-green-800 p-4 rounded-md shadow-lg flex items-center">
-            <CheckCircle className="h-5 w-5 mr-2" />
-            <span>Başarıyla kaydedildi!</span>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
