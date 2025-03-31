@@ -108,3 +108,20 @@ export type InsertVideo = z.infer<typeof insertVideoSchema>;
 
 export type DailyUsage = typeof dailyUsage.$inferSelect;
 export type InsertDailyUsage = z.infer<typeof insertDailyUsageSchema>;
+
+// API Yapılandırması için tip tanımları
+export const apiConfig = pgTable("api_config", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  value: text("value"),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertApiConfigSchema = createInsertSchema(apiConfig).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export type ApiConfig = typeof apiConfig.$inferSelect;
+export type InsertApiConfig = z.infer<typeof insertApiConfigSchema>;

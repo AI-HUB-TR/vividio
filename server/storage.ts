@@ -3,7 +3,8 @@ import {
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   subscriptions, type Subscription, type InsertSubscription,
   videos, type Video, type InsertVideo,
-  dailyUsage, type DailyUsage, type InsertDailyUsage
+  dailyUsage, type DailyUsage, type InsertDailyUsage,
+  apiConfig, type ApiConfig, type InsertApiConfig
 } from "@shared/schema";
 
 // Storage interface
@@ -43,6 +44,13 @@ export interface IStorage {
   getUserCount(): Promise<number>;
   getVideoCount(): Promise<number>;
   getRevenueTotal(): Promise<number>;
+  
+  // API Config operations
+  getApiConfig(name: string): Promise<ApiConfig | undefined>;
+  getAllApiConfigs(): Promise<ApiConfig[]>;
+  createApiConfig(config: InsertApiConfig): Promise<ApiConfig>;
+  updateApiConfig(id: number, config: Partial<ApiConfig>): Promise<ApiConfig | undefined>;
+  updateApiConfigByName(name: string, value: string): Promise<ApiConfig | undefined>;
 }
 
 // In-memory implementation of storage interface
@@ -52,12 +60,15 @@ export class MemStorage implements IStorage {
   private subscriptions: Map<number, Subscription>;
   private videos: Map<number, Video>;
   private dailyUsage: Map<string, DailyUsage>;
+  private apiConfigs: Map<number, ApiConfig>;
+  private apiConfigsByName: Map<string, ApiConfig>;
   
   private userId: number;
   private subscriptionPlanId: number;
   private subscriptionId: number;
   private videoId: number;
   private dailyUsageId: number;
+  private apiConfigId: number;
   
   constructor() {
     this.users = new Map();
@@ -65,15 +76,21 @@ export class MemStorage implements IStorage {
     this.subscriptions = new Map();
     this.videos = new Map();
     this.dailyUsage = new Map();
+    this.apiConfigs = new Map();
+    this.apiConfigsByName = new Map();
     
     this.userId = 1;
     this.subscriptionPlanId = 1;
     this.subscriptionId = 1;
     this.videoId = 1;
     this.dailyUsageId = 1;
+    this.apiConfigId = 1;
     
     // Initialize with default subscription plans
     this.initSubscriptionPlans();
+    
+    // Initialize default API configurations
+    this.initApiConfigs();
   }
   
   // Initialize default subscription plans
@@ -292,6 +309,123 @@ export class MemStorage implements IStorage {
       }
     }
     return total;
+  }
+  
+  // API Config initialization
+  private initApiConfigs() {
+    // API anahtarları ve diğer yapılandırma ayarları
+    const configs: InsertApiConfig[] = [
+      {
+        name: "PEXELS_API_KEY",
+        value: process.env.PEXELS_API_KEY || "",
+        description: "Pexels stok fotoğraf ve video API anahtarı"
+      },
+      {
+        name: "UNSPLASH_ACCESS_KEY",
+        value: process.env.UNSPLASH_ACCESS_KEY || "",
+        description: "Unsplash stok fotoğraf API anahtarı"
+      },
+      {
+        name: "PEXELS_DOMAIN",
+        value: "",
+        description: "Pexels API için izin verilen domain (boş = tüm domainler)"
+      },
+      {
+        name: "UNSPLASH_DOMAIN",
+        value: "",
+        description: "Unsplash API için izin verilen domain (boş = tüm domainler)"
+      },
+      {
+        name: "HUGGINGFACE_API_KEY",
+        value: process.env.HUGGINGFACE_API_KEY || "",
+        description: "HuggingFace API anahtarı"
+      },
+      {
+        name: "GEMINI_API_KEY",
+        value: process.env.GEMINI_API_KEY || "",
+        description: "Google Gemini API anahtarı"
+      },
+      {
+        name: "DEEPSEEK_API_KEY",
+        value: process.env.DEEPSEEK_API_KEY || "",
+        description: "DeepSeek API anahtarı"
+      },
+      {
+        name: "GROQ_API_KEY",
+        value: process.env.GROQ_API_KEY || "",
+        description: "Groq API anahtarı (Llama3 modeli için)"
+      }
+    ];
+    
+    // Default API yapılandırmalarını ekle
+    configs.forEach(config => {
+      this.createApiConfig(config);
+    });
+  }
+  
+  // API Config operations
+  async getApiConfig(name: string): Promise<ApiConfig | undefined> {
+    return this.apiConfigsByName.get(name);
+  }
+  
+  async getAllApiConfigs(): Promise<ApiConfig[]> {
+    return Array.from(this.apiConfigs.values());
+  }
+  
+  async createApiConfig(config: InsertApiConfig): Promise<ApiConfig> {
+    const id = this.apiConfigId++;
+    const now = new Date();
+    const newConfig: ApiConfig = { 
+      ...config, 
+      id, 
+      updatedAt: now 
+    };
+    
+    this.apiConfigs.set(id, newConfig);
+    this.apiConfigsByName.set(newConfig.name, newConfig);
+    
+    return newConfig;
+  }
+  
+  async updateApiConfig(id: number, configData: Partial<ApiConfig>): Promise<ApiConfig | undefined> {
+    const config = this.apiConfigs.get(id);
+    if (!config) return undefined;
+    
+    const now = new Date();
+    const updatedConfig = { 
+      ...config, 
+      ...configData, 
+      updatedAt: now 
+    };
+    
+    this.apiConfigs.set(id, updatedConfig);
+    
+    // Eğer isim değiştiyse, isim haritalanmasını güncelle
+    if (configData.name && configData.name !== config.name) {
+      this.apiConfigsByName.delete(config.name);
+      this.apiConfigsByName.set(updatedConfig.name, updatedConfig);
+    } else {
+      this.apiConfigsByName.set(config.name, updatedConfig);
+    }
+    
+    return updatedConfig;
+  }
+  
+  async updateApiConfigByName(name: string, value: string): Promise<ApiConfig | undefined> {
+    const config = this.apiConfigsByName.get(name);
+    if (!config) return undefined;
+    
+    const now = new Date();
+    const updatedConfig = { 
+      ...config, 
+      value, 
+      updatedAt: now 
+    };
+    
+    this.apiConfigs.set(config.id, updatedConfig);
+    this.apiConfigsByName.set(name, updatedConfig);
+    
+    return updatedConfig;
   }
 }
 

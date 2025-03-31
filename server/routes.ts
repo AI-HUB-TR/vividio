@@ -41,8 +41,15 @@ import {
   generateVideoScenes,
   generateSceneImage,
   createVideo as createAIVideo,
-  checkVideoStatus
+  checkVideoStatus,
+  enhanceScenes
 } from "./controllers/ai";
+
+import {
+  getAllApiConfigs,
+  updateApiConfig,
+  getApiConfigByName
+} from "./controllers/api-config";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create memory store for sessions
@@ -93,6 +100,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/generate-image", isAuthenticated, generateSceneImage);
   app.post("/api/ai/create-video", isAuthenticated, createAIVideo);
   app.get("/api/ai/video-status/:videoId", isAuthenticated, checkVideoStatus);
+  app.post("/api/ai/enhance-scenes", isAuthenticated, enhanceScenes);
+  
+  // Stok içerik API'leri kaldırıldı
+  
+  // API Yapılandırma Rotaları
+  app.get("/api/admin/api-configs", isAuthenticated, isAdmin, getAllApiConfigs);
+  app.get("/api/admin/api-configs/:name", isAuthenticated, isAdmin, getApiConfigByName);
+  app.put("/api/admin/api-configs", isAuthenticated, isAdmin, updateApiConfig);
   
   const httpServer = createServer(app);
   

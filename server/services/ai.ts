@@ -6,6 +6,7 @@ import OpenAI from 'openai';
 const HUGGINGFACE_API_KEY = process.env.HUGGINGFACE_API_KEY || '';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
 // Hugging Face client
 const hfClient = new HfInference(HUGGINGFACE_API_KEY);
@@ -14,6 +15,12 @@ const hfClient = new HfInference(HUGGINGFACE_API_KEY);
 const deepseekClient = new OpenAI({
   apiKey: DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com/v1',
+});
+
+// Groq client (OpenAI uyumlu API)
+const groqClient = new OpenAI({
+  apiKey: GROQ_API_KEY,
+  baseURL: 'https://api.groq.com/openai/v1',
 });
 
 // Metin özeti ve sahne oluşturma fonksiyonu
@@ -82,6 +89,8 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
     // Bir işleme süresi simüle ediyoruz
     await new Promise(resolve => setTimeout(resolve, 3000));
     
+    const contentSource = 'AI tarafından üretilen içerik';
+    
     // Gemini API ile video işlemi açıklaması
     const geminiRequestBody = {
       contents: [{
@@ -91,6 +100,7 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
           - Çözünürlük: ${videoOptions.resolution}
           - Süre: ${videoOptions.duration} saniye
           - Toplam sahne sayısı: ${scenes.length}
+          - İçerik kaynağı: ${contentSource}
           
           Video başarıyla oluşturuldu ve kullanıma hazır.`
         }]
@@ -108,15 +118,56 @@ export async function simulateVideoProcessing(scenes: any[], videoOptions: any) 
 
     const processingResult = geminiResponse.data.candidates[0].content.parts[0].text;
     
-    // Simüle edilmiş video URL'si döndürüyoruz
+    const videoUrl = 'https://example.com/sample-video.mp4';
+    
+    // Thumbnail için ilk sahnenin görselini kullan
+    const thumbnailUrl = scenes[0]?.imageUrl || null;
+    
     return {
-      videoUrl: 'https://example.com/sample-video.mp4',
-      thumbnailUrl: scenes[0]?.imageUrl || null,
+      videoUrl,
+      thumbnailUrl,
       processingResult
     };
   } catch (error) {
     console.error('Video processing error:', error);
     throw new Error('Video işlenirken bir hata oluştu');
+  }
+}
+
+// Groq API ile sahne içeriğini geliştirme
+export async function enhanceSceneContent(scenes: any[]) {
+  try {
+    const enhancedScenes = [];
+    
+    for (const scene of scenes) {
+      // Groq ile sahne içeriğini zenginleştirme
+      const response = await groqClient.chat.completions.create({
+        model: 'llama3-8b-8192', // Groq'un desteklediği model
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Sen bir profesyonel film yönetmeni ve içerik oluşturucususun. Video sahneleri için detaylı, canlı ve etkileyici açıklamalar yazıyorsun.' 
+          },
+          { 
+            role: 'user', 
+            content: `Bu video sahnesi için daha ayrıntılı ve yaratıcı bir görsel tanımlama yaz. Sonucu Türkçe olarak ver ve 100 kelimeyi geçme. Orijinal açıklama: "${scene.visual_description}"` 
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 150,
+      });
+      
+      // Sonucu ekleyerek zenginleştirilmiş sahneyi oluştur
+      enhancedScenes.push({
+        ...scene,
+        enhanced_description: response.choices[0]?.message?.content || scene.visual_description
+      });
+    }
+    
+    return enhancedScenes;
+  } catch (error) {
+    console.error('Scene enhancement error:', error);
+    throw new Error('Sahne içeriği zenginleştirilirken bir hata oluştu');
   }
 }
 

@@ -3,7 +3,8 @@ import {
   generateScenes, 
   generateImageForScene, 
   simulateVideoProcessing, 
-  checkVideoProcessingStatus 
+  checkVideoProcessingStatus,
+  enhanceSceneContent
 } from "../services/ai";
 import { storage } from "../storage";
 import { insertVideoSchema } from "@shared/schema";
@@ -177,6 +178,59 @@ export async function createVideo(req: Request, res: Response) {
   } catch (error: any) {
     console.error("Create video error:", error);
     res.status(500).json({ error: error.message || "Video oluşturulurken bir hata oluştu" });
+  }
+}
+
+// Sahne içeriğini geliştirme endpoint'i
+export async function enhanceScenes(req: Request, res: Response) {
+  try {
+    const { scenes } = req.body;
+    
+    if (!scenes || !scenes.length) {
+      return res.status(400).json({ error: "Sahne listesi gereklidir" });
+    }
+    
+    // Oturum kontrolü
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Oturum açmanız gerekiyor" });
+    }
+    
+    const userId = req.session.userId;
+    
+    // Kullanıcı ve plan bilgilerini kontrol et
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "Kullanıcı bulunamadı" });
+    }
+    
+    // Plan kontrolü - Pro ve Business planları sahne geliştirme özelliğine sahip olsun
+    const userSubscription = await storage.getUserSubscription(userId);
+    let subscriptionPlan = null;
+    
+    if (userSubscription) {
+      subscriptionPlan = await storage.getSubscriptionPlan(userSubscription.planId);
+    }
+    
+    // Eğer kullanıcı ücretsiz plandaysa özellik kullanımını kısıtla
+    const isPremium = subscriptionPlan && subscriptionPlan.name !== "Free";
+    if (!isPremium) {
+      return res.status(403).json({ 
+        error: "Sahne içeriği geliştirme özelliği sadece premium aboneler için kullanılabilir",
+        upgradePlans: await storage.getAllSubscriptionPlans()
+      });
+    }
+    
+    // Groq API ile sahne içeriğini geliştir
+    const enhancedScenes = await enhanceSceneContent(scenes);
+    
+    // Başarılı yanıt
+    res.json({ 
+      enhancedScenes,
+      message: "Sahne içeriği başarıyla geliştirildi"
+    });
+  } catch (error: any) {
+    console.error("Enhance scenes error:", error);
+    res.status(500).json({ error: error.message || "Sahne içeriği geliştirilirken bir hata oluştu" });
   }
 }
 

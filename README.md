@@ -21,6 +21,7 @@ VidAI, metin tabanlı girişlerden video oluşturabilen, tamamen Türkçe, kulla
   - Hugging Face (Görsel Oluşturma)
   - DeepSeek (Metin İşleme)
   - Google Gemini (Video İşleme)
+  - Groq (Sahne İçeriği Geliştirme, LLama3 Modeli)
 - **Kimlik Doğrulama**: Firebase Kimlik Doğrulama
 
 ## Başlarken
@@ -33,6 +34,7 @@ VidAI, metin tabanlı girişlerden video oluşturabilen, tamamen Türkçe, kulla
   - HUGGINGFACE_API_KEY
   - DEEPSEEK_API_KEY
   - GEMINI_API_KEY
+  - GROQ_API_KEY
   - Firebase yapılandırması (VITE_FIREBASE_API_KEY, VITE_FIREBASE_APP_ID, VITE_FIREBASE_PROJECT_ID)
 
 ### Kurulum
@@ -64,6 +66,7 @@ npm run dev
 | Çözünürlük | 720p | 1080p | 4K |
 | Filigran | Var | Yok | Yok |
 | Özel AI Modelleri | Hayır | Evet | Evet |
+| Sahne İçeriği Geliştirme | Hayır | Evet | Evet |
 | Fiyat (Aylık) | Ücretsiz | 199₺ | 499₺ |
 
 ## API Endpoint'leri
@@ -92,6 +95,7 @@ npm run dev
 - `POST /api/ai/generate-image` - Sahne için görsel oluşturma
 - `POST /api/ai/create-video` - Video oluşturma
 - `GET /api/ai/video-status/:videoId` - Video durumunu kontrol etme
+- `POST /api/ai/enhance-scenes` - Groq ile sahne içeriğini geliştirme (Premium)
 
 ### Admin
 - `GET /api/admin/stats` - Dashboard istatistikleri
